@@ -159,6 +159,103 @@ class Mips extends MipsGenerator {
       }
 
       /* PUT YOUR CODE HERE */
+	  
+	  case IntValue(value) => {
+	    val regValue = rpool.get()
+		mips("li", regValue+", "+value)
+		
+		regValue		
+	  }
+	  
+	  case Mem(addr) => {
+	    val regAddr = emit(addr)		
+		val regMem = rpool.get()		
+		mips("lw", regMem+", ("+regAddr+")")
+		
+		rpool.recycle(regAddr)	
+		regMem
+	  }
+	  
+	  case Reg(name) => {
+	    val reg = rpool.get()
+		mips("move", reg+", $"+name)
+		
+		reg	  
+	  }
+	  
+	  case Binop(op, left, right) => {
+	    val regLeft = emit(left)
+		val regRight = emit(right)
+		
+		if (op.equals("PLUS")) {
+		  mips("addu", regLeft+", "+regLeft+", "+regRight)
+		}
+		else if (op.equals("MINUS")) {
+		  mips("subu", regLeft+", "+regLeft+", "+regRight)		
+		}
+		else if (op.equals("TIMES")) {
+		  mips("mul", regLeft+", "+regLeft+", "+regRight)
+		}
+		else if (op.equals("SLASH")) {
+		  mips("div", regLeft+", "+regLeft+", "+regRight)
+		}
+		else if (op.equals("DIV")) {
+		  mips("div", regLeft+", "+regLeft+", "+regRight)
+		}
+		else if (op.equals("MOD")) {
+		  mips("rem", regLeft+", "+regLeft+", "+regRight)
+		}
+		else if (op.equals("OR")) {
+		  mips("or", regLeft+", "+regLeft+", "+regRight)
+		}
+		else if (op.equals("GT")) {
+		  mips("sgt", regLeft+", "+regLeft+", "+regRight)		
+		}
+		else if (op.equals("LT")) {
+		  mips("slt", regLeft+", "+regLeft+", "+regRight)		
+		}				
+		else if (op.equals("EQ")) {
+		  mips("seq", regLeft+", "+regLeft+", "+regRight)		
+		}
+		else if (op.equals("GEQ")) {
+		  mips("sge", regLeft+", "+regLeft+", "+regRight)		
+		}
+		else if (op.equals("LEQ")) {
+		  mips("sle", regLeft+", "+regLeft+", "+regRight)	
+		}
+		else if (op.equals("NEQ")) {
+		  mips("sne", regLeft+", "+regLeft+", "+regRight)		
+		}
+		
+		rpool.recycle(regRight)
+		regLeft
+	  }
+	  	  
+	  case Unop(op, oprnd) => {
+	    val regOprnd = emit(oprnd)
+		
+		if (op.equals("NOT")) {
+		  mips("seq", regOprnd+", "+regOprnd+", 0")		
+		} 
+		else if (op.equals("MINUS")) {
+		  mips("neg", regOprnd+", "+regOprnd)		
+		}
+		
+		regOprnd
+	  }
+	  
+	  case Allocate(size) => {
+		val regSize = emit(size)
+		val regLength = rpool.get()
+
+		mips("li", regLength+", 4")
+		mips("mul", regSize+", "+regSize+", "+regLength)
+		mips("move", regLength+", $gp")
+		mips("addu", "$gp, $gp, "+regSize)
+		
+		rpool.recycle(regSize)
+		regLength
+	  }
 
       case _ => throw new Error("Unknown IR: "+e)
     }
@@ -174,7 +271,143 @@ class Mips extends MipsGenerator {
       }
 
       /* PUT YOUR CODE HERE */
+	  
+	  case Move(Mem(dest), src) => {
+	    val regDest = emit(dest)
+		val regSrc = emit(src)
+		mips("sw", regSrc+", ("+regDest+")")	  
 
+		rpool.recycle(regDest)
+		rpool.recycle(regSrc)  
+	  }
+	  
+	  case Move(Reg(dest), Reg(src)) => {
+	    mips("move", "$"+dest+", $"+src)
+	  }
+
+	  case Move(Reg(dest), src) => {
+	    val regSrc = emit(src)
+		mips("move", "$"+dest+", "+regSrc)
+	  }
+	  
+	  case Move(dest, src) => {
+	    val regDest = emit(dest)
+		val regSrc = emit(src)
+		mips("move", regDest+", "+regSrc)	  
+
+		rpool.recycle(regDest)
+		rpool.recycle(regSrc)
+	  }
+	  
+	  case Label(name) => {
+	    if (name.equals("main")) {
+		  mips(".globl", name)
+		  mips(".data")
+		  mips_label("AF_")
+		  mips(".asciiz", "\"\\n*** Assertion Failure at address: ASSERT_\"")
+		  mips_label("ENDL_")
+		  mips(".asciiz", "\"\\n\"")
+		  mips(".text")
+		  mips_label("Assertion_failure")
+		  val reg = rpool.get()
+		  mips("move", reg+", $v0")
+		  mips("li", "$v0, 4")
+		  mips("la", "$a0, AF_")
+		  mips("syscall")
+		  mips("move", "$a0, "+reg)
+		  mips("li", "$v0, 1")
+		  mips("syscall")
+		  mips("li", "$v0, 4")
+		  mips("la", "$a0, ENDL_")
+		  mips("syscall")
+		  mips("li", "$v0, 10")
+		  mips("syscall")
+		  mips_label(name)
+		  
+		  rpool.recycle(reg)
+		}
+		else {
+		  mips_label(name)
+		}
+	  }
+	  
+	  case Jump(name) => {
+	    mips("j", name)	  
+	  }
+	  
+	  case CJump(cond, label) => {
+	    val regCond = emit(cond)
+		mips("beq", regCond+", 1, "+label)
+	  }
+	  
+	  case CallP(name, staticLink, args) => {
+	    emit(Call(name, staticLink, args))
+	  }
+	  
+	  case SystemCall(name, arg) => {
+	    if (name.equals("WRITE_STRING")) {
+		  arg match {
+		    case StringValue(s) => {
+			  if (s.equals("\\n")) {
+			    mips("li", "$v0, 4")
+				mips("la", "$a0, ENDL_")
+			    mips("syscall")			  
+			  }
+			  else {
+				mips(".data")
+				mips(".align", "2")
+
+				val label = new_label()
+				mips_label(label)
+				
+				mips(".asciiz", "\""+s+"\"")
+				mips(".text")
+				val reg1 = rpool.get()
+				mips("la", reg1+", "+label)
+				mips("move", "$a0, "+reg1)
+				mips("li", "$v0, 4")				
+				mips("syscall")		
+			  }
+			}
+		  }
+		}
+		else if (name.equals("WRITE_INT")) {
+		  val regArg = emit(arg)
+		  
+		  mips("move", "$a0, "+regArg)
+		  mips("li", "$v0, 1")		
+		  mips("syscall")
+		  
+		  rpool.recycle(regArg)
+		}		
+		else if (name.equals("READ_INT")) {
+		  arg match {
+			case Mem(memArg) => {
+			  mips("li", "$v0, 5")
+			  mips("syscall")
+			  val regMemArg = emit(memArg)
+			  mips("sw", "$v0, ("+regMemArg+")")		
+
+			  rpool.recycle(regMemArg)
+			}
+		  }		
+		}
+	  }
+
+	  case Return() => {
+	    mips("jr", "$ra")
+	  }
+	  
+	  case Assert(cond) => {
+	    val regCond = emit(cond)
+		assert_count += 1
+		mips_label("ASSERT_"+assert_count)
+		mips("li", "$v0, "+assert_count)
+		mips("beq", regCond+", 0, Assertion_failure")
+
+		rpool.recycle(regCond)
+	  }	
+	  
       case _ => throw new Error("Unknown IR: "+e)
     }
   }
