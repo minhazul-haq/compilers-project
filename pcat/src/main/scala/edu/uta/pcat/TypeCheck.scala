@@ -102,16 +102,67 @@ class TypeCheck extends TypeChecker {
                if (typeEquivalence(ltp,boolType))
                  ltp
                else throw new Error("AND/OR operation can only be applied to booleans: "+e)
-               else if (op.equals("eq") || op.equals("neq"))
-                      boolType
-               else if (!typeEquivalence(ltp,intType) && !typeEquivalence(ltp,floatType))
-                      throw new Error("Binary arithmetic operations can only be applied to integer or real numbers: "+e)
-               else if (op.equals("gt") || op.equals("lt") || op.equals("geq") || op.equals("leq"))
-                      boolType
-               else ltp
+        else if (op.equals("eq") || op.equals("neq"))
+               boolType
+        else if (!typeEquivalence(ltp,intType) && !typeEquivalence(ltp,floatType))
+               throw new Error("Binary arithmetic operations can only be applied to integer or real numbers: "+e)
+        else if (op.equals("gt") || op.equals("lt") || op.equals("geq") || op.equals("leq"))
+               boolType
+        else ltp
       }
 
       /* PUT YOUR CODE HERE */
+
+	  case UnOpExp(op,oprnd)
+	    => val tp = typecheck(oprnd)
+		   if (op.equals("minus") && !typeEquivalence(tp,intType) && !typeEquivalence(tp,floatType))
+			 throw new Error("Unary MINUS operation can only be applied to integer or real numbers: "+oprnd)
+		   else if (op.equals("not") && !typeEquivalence(tp,boolType))
+			 throw new Error("Unary NOT operation can only be applied to booleans: "+oprnd)
+		   else
+		     tp
+
+	  case LvalExp(lv)
+	    => typecheck(lv)
+	  
+	  case CallExp(n,al)
+		=> st.lookup(n) match {
+		     case Some(ProcDec(otp,pl,_,_,_)) 
+			   => if (al.length != pl.length)
+			        throw new Error("Number of parameters doesn't match number of arguments")
+				  else 
+				    for ((a,p) <- (al zip pl)) {
+					  val tp = typecheck(a)
+					  if (!typeEquivalence(tp,p._2))
+					    throw new Error("The type of call arguments ("+tp+") does not match the type of the formal parameter: "+p._2)
+				    }
+				  otp
+			 case Some(_) => throw new Error(n+" is not a procedure" )
+			 case None => throw new Error("Undefined procedure: "+n)
+		   }	
+	  
+	  case RecordExp(n,al)
+	    => for ((a1,a2) <- al)
+		     typecheck(a2)
+		   NamedType(n)	 
+  
+	  case ArrayExp(n,al)
+	    => for ((a1,a2) <- al) {
+		     val a1_tp = typecheck(a1)
+			 if (!typeEquivalence(a1_tp, intType))
+			   throw new Error("First expression in array intialization must be integer: "+new ArrayExp(n,al))
+			 typecheck(a2)
+		   }
+		   NamedType(n)
+		   
+	  case IntConst(n)
+	    => intType
+	  
+	  case RealConst(n)
+		=> floatType
+	  
+	  case StringConst(s) 
+	    => stringType
 
       case _ => throw new Error("Wrong expression: "+e)
     } )
@@ -119,6 +170,12 @@ class TypeCheck extends TypeChecker {
   /** typecheck an Lvalue AST */
   def typecheck ( e: Lvalue ): Type =
     trace(e,e match {
+	  case Var("TRUE")
+		=> boolType
+	  case Var("FALSE")
+		=> boolType
+	  case Var("NIL")
+		=> anyType
       case Var(name)
         => st.lookup(name) match {
               case Some(VarDec(t,_,_)) => t
@@ -127,7 +184,33 @@ class TypeCheck extends TypeChecker {
       }
 
       /* PUT YOUR CODE HERE */
-
+	  
+	  case ArrayDeref(a,i)
+	    => val i_tp = typecheck(i)
+		   if (!typeEquivalence(i_tp,intType))
+		     throw new Error("Array index must be integer: "+new ArrayDeref(a,i))
+		   val a_tp = typecheck(a)
+		   expandType(a_tp) match {
+		     case ArrayType(s) => NamedType(s)		   
+		   }
+		   
+	  case RecordDeref(r,a)
+	    => var tp = typecheck(r)
+		   expandType(tp) match {
+		     case RecordType(cl) => var returnValue = noType
+									var isValidAttribute = false
+									for((s1,s2) <- cl) {
+									  if (s1==a) {
+									    returnValue = NamedType(s2)
+									    isValidAttribute = true
+									  }
+									}
+									if (isValidAttribute)
+									  returnValue
+									else  
+									  throw new Error("Record does not have the component: "+a)
+		   }
+		   
       case _ => throw new Error("Wrong lvalue: "+e)
     } )
 
@@ -141,6 +224,70 @@ class TypeCheck extends TypeChecker {
 
       /* PUT YOUR CODE HERE */
 
+	  case CallSt(n,al)
+	    => st.lookup(n) match {
+		     case Some(ProcDec(otp,pl,_,_,_)) 
+			   => if (al.length != pl.length)
+			        throw new Error("Number of parameters doesn't match number of arguments")
+				  else 
+				    for ((a,p) <- (al zip pl)) {
+					  val tp = typecheck(a)
+					  if (!typeEquivalence(tp,p._2))
+					    throw new Error("The type of call arguments ("+tp+") does not match the type of the formal parameter: "+p._2)
+				    }
+				  val returnValue: List[String] = List.fill(al.length)(new String("()"))
+			      returnValue
+			 case Some(_) => throw new Error(n+" is not a procedure" )
+			 case None => throw new Error("Undefined procedure: "+n)
+		   }
+
+	  case ReadSt(al)
+	    => al.foreach(typecheck(_))
+	  
+	  case WriteSt(al)
+		=> al.foreach(typecheck(_))
+	  
+	  case IfSt(c,s1,s2)
+        => val tp = typecheck(c)
+		   if (!typeEquivalence(tp,boolType))
+		     throw new Error("Expected a boolean in IF test: "+c)
+		   typecheck(s1)
+           typecheck(s2)
+		   
+	  case WhileSt(c,b)
+		=> val tp = typecheck(c)
+		   if (!typeEquivalence(tp,boolType))
+		     throw new Error("Expected a boolean in WHILE test: "+c)
+		   typecheck(b)		
+		
+	  case LoopSt(b)
+	    => typecheck(b)
+		
+	  case ForSt(v,init,stp,inc,b)
+		=> st.begin_scope()
+		   st.insert(v, VarDec(intType,0,0))
+		   val i_tp = typecheck(init)
+		   if (!typeEquivalence(i_tp,intType))
+		     throw new Error("initial value in FOR loop must be integer: "+init)
+		   val s_tp = typecheck(stp)
+		   if (!typeEquivalence(i_tp,intType))
+		     throw new Error("step in FOR loop must be integer: "+stp)
+		   typecheck(inc)
+		   typecheck(b)
+		   st.end_scope()
+		   
+	  case ExitSt()
+		=>
+	  
+	  case ReturnValueSt(v)
+		=> val unused = typecheck(v)
+		   
+	  case ReturnSt()
+		=>
+	  
+	  case SeqSt(sl)
+        => sl.foreach(typecheck(_))	  
+	  
       case _ => throw new Error("Wrong statement: "+e)
     } )
   }
@@ -191,13 +338,14 @@ class TypeCheck extends TypeChecker {
   /** typecheck the main program */
   def typecheck ( e: ProcDecl ) {
     try {
-      e match {
+      trace(e,
+		    e match {
         case ProcDecl(f,ot,ps,b) => {
             st.begin_scope()
             typecheck(b,NamedType(ot))
             st.end_scope()
         }
-      }
+      } )
     } catch {
         case e: Error => println("*** Type checking error: " + e)
         sys.exit(-1)
