@@ -109,6 +109,78 @@ class Code ( tc: TypeChecker ) extends CodeGenerator(tc) {
 
       /* PUT YOUR CODE HERE */
 
+    case UnOpExp(op,oprnd) => {
+      val nop = op.toUpperCase()
+      val cOprnd = code(oprnd,level,fname)
+      Unop(nop,cOprnd)    
+    }
+    
+    case LvalExp(lv) => {
+      code(lv,level,fname)
+    }
+
+    case CallExp(n,al) => {
+      var alist: List[IRexp] = List()
+
+    for( a <- al ) {
+      alist = alist :+ code(a,level,fname)    
+    }
+        
+    var procLabel = n
+    var procLevel = 0
+    
+    st.lookup(n) match {
+      case Some(ProcDec(_,_,label,level,_)) => {
+        val lastIndexOfUnderscore = label.lastIndexOf('_')
+      val n2 = label.substring(0,lastIndexOfUnderscore)
+        if ( n.equals(n2) ) {
+        procLabel = label
+        procLevel = level 
+      }
+      } 
+    } 
+              
+    if (level - procLevel == -1) {
+      Call(procLabel,Reg("fp"),alist)
+    }
+    else {
+      var staticLink = Mem(Binop("PLUS",Reg("fp"),IntValue(-8)))
+      
+      for (i <- 1 to (level - procLevel))
+        staticLink = Mem(Binop("PLUS",staticLink,IntValue(-8)))
+  
+      Call(procLabel,staticLink,alist)
+    }
+    }
+    
+      case RecordExp(n,al) => {
+    val R = allocate_variable(new_name("R"),NamedType(n),fname)
+    var I = 0
+    var len = 0
+        var cs: List[IRstmt] = List()
+  
+    for( (s,e) <- al ) {
+      val cv = code(e,level,fname)
+      cs = cs :+ Move(Mem(Binop("PLUS",R,IntValue(I))),cv)      
+      len = len + 1
+      I = I + 4
+    }
+    
+    ESeq( Seq( List(Move(R,Allocate( IntValue(len) ))) ++ cs), R)   
+    }  
+
+    case IntConst(v) => {
+      IntValue(v)
+    }
+        
+    case RealConst(v) => {
+      RealValue(v)
+    }
+        
+    case StringConst(v) => {
+      StringValue(v)
+    }
+        
       case _ => throw new Error("Wrong expression: "+e)
     }
   }
@@ -125,6 +197,159 @@ class Code ( tc: TypeChecker ) extends CodeGenerator(tc) {
 
       /* PUT YOUR CODE HERE */
 
+    case CallSt(n,al) => {
+      var alist: List[IRexp] = List()
+  
+    for( a <- al ) {
+      alist = alist :+ code(a,level,fname)    
+    }
+        
+    var procLabel = n
+    var procLevel = 0
+    
+    st.lookup(n) match {
+      case Some(ProcDec(_,_,label,level,_)) =>
+        val lastIndexOfUnderscore = label.lastIndexOf('_')
+      val n2 = label.substring(0,lastIndexOfUnderscore)
+        if ( n.equals(n2) ) {
+        procLabel = label
+        procLevel = level 
+      }
+    } 
+              
+    if (level - procLevel == -1) {
+      CallP(procLabel,Reg("fp"),alist)
+    }
+    else {
+      var staticLink = Mem(Binop("PLUS",Reg("fp"),IntValue(-8)))
+      
+      for (i <- 1 to (level - procLevel))
+        staticLink = Mem(Binop("PLUS",staticLink,IntValue(-8)))
+  
+      CallP(procLabel,staticLink,alist)
+    }
+    }
+        
+    case ReadSt(lvl) => {
+    var list: List[IRstmt] = List()
+    for (lv <- lvl) {
+      val tp = typechecker.typecheck(lv)
+      if (tp==typechecker.intType)
+      list = list :+ SystemCall("READ_INT", code(lv,level,fname)) 
+      if (tp==typechecker.floatType)
+        list = list :+ SystemCall("READ_FLOAT", code(lv,level,fname)) 
+    } 
+    Seq(list)     
+    }
+        
+    case WriteSt(al) => {
+    var list: List[IRstmt] = List()
+    for (a <- al) {
+      a match {
+        case IntConst(n) =>
+        list = list :+ SystemCall("WRITE_INT", IntValue(n))
+      case RealConst(f) => 
+        list = list :+ SystemCall("WRITE_FLOAT", RealValue(f))
+      case StringConst(s) => 
+        list = list :+ SystemCall("WRITE_STRING", StringValue(s))
+      case _ => {
+        val tp = typechecker.typecheck(a)
+        if (tp==typechecker.intType)
+          list = list :+ SystemCall("WRITE_INT", code(a,level,fname)) 
+        else if (tp==typechecker.floatType)
+          list = list :+ SystemCall("WRITE_FLOAT", code(a,level,fname)) 
+            else if (tp==typechecker.boolType)
+          list = list :+ SystemCall("WRITE_BOOL", code(a,level,fname))  
+        else if (tp==typechecker.stringType)
+          list = list :+ SystemCall("WRITE_STRING", code(a,level,fname))      
+      }
+      }
+    } 
+    list = list :+ SystemCall("WRITE_STRING",StringValue("\\n"))
+    Seq(list)     
+    }   
+
+    case IfSt(cond,s1,s2) => {
+      val cont = new_name("cont")
+    val exit = new_name("exit")
+    val cS1 = code(s1,level,fname)
+    val cS2 = code(s2,level,fname)
+      
+    Seq(List( CJump( code(cond,level,fname), exit ),
+          cS2,
+          Jump(cont),
+          Label(exit),
+          cS1,
+                  Label(cont) ))
+    }   
+    
+    case WhileSt(cond,b) => {
+      val loop = new_name("loop")
+    val exit = new_name("exit")
+    
+    Seq(List( Label(loop),
+          CJump(Unop("NOT",code(cond,level,fname)),exit),
+          code(b,level,fname),
+          Jump(loop),
+          Label(exit) ))
+    }
+
+    case LoopSt(b) => {
+      val loop = new_name("loop")
+    val exit = new_name("exit")
+    labels.push(exit)
+    
+    Seq(List( Label(loop),
+          code(b,level,fname),
+          Jump(loop),
+          Label(exit) ))
+    }
+    
+    case ForSt(v,init,step,inc,b) => {
+      val loop = new_name("loop")
+    val exit = new_name("exit")
+    
+      var forVariable = allocate_variable(v,NamedType("INTEGER"),fname) 
+    
+    Seq(List( Move(Mem(forVariable),code(init,level,fname)),
+          Label(loop),
+          CJump(Binop("GT",forVariable,code(step,level,fname)),exit),
+          code(b,level,fname),
+          Move(Mem(forVariable),Binop("PLUS",forVariable,IntValue(1))),
+          Jump(loop),
+          Label(exit) ))
+    } 
+    
+    case ExitSt() => {
+      val exitLabel = labels.pop()
+    Jump(exitLabel)
+    }   
+    
+    case ReturnValueSt(v) => {
+      Seq(List( Move(Reg("a0"),code(v,level,fname)),
+          Move(Reg("ra"),Mem(Binop("PLUS",Reg("fp"),IntValue(-4)))),
+          Move(Reg("sp"),Reg("fp")),
+          Move(Reg("fp"),Mem(Reg("fp"))),
+          Return() ))
+    }   
+
+    case ReturnSt() => {
+      Seq(List( Move(Reg("ra"),Mem(Binop("PLUS",Reg("fp"),IntValue(-4)))),
+          Move(Reg("sp"),Reg("fp")),
+          Move(Reg("fp"),Mem(Reg("fp"))),
+          Return() ))
+    }   
+        
+    case SeqSt(sl) => {
+      var list: List[IRstmt] = List()
+    
+      for ( s <- sl ) {
+      list = list :+ code(s,level,fname)
+    }
+    
+    Seq(list)
+    }
+    
       case _ => throw new Error("Wrong statement: " + e)
     }
   }
@@ -133,10 +358,44 @@ class Code ( tc: TypeChecker ) extends CodeGenerator(tc) {
    *  fname is the name of the current function/procedure) */
   def code ( e: Lvalue, level: Int, fname: String ): IRexp = {
     e match {
+    case Var("TRUE") => IntValue(1)
+    case Var("FALSE") => IntValue(0)
+    case Var("NIL") => IntValue(0)
       case Var(s) => access_variable(s,level)
 
       /* PUT YOUR CODE HERE */
 
+    case ArrayDeref(array,index) => {
+    ESeq( Assert( Binop( "AND", 
+               Binop("GEQ",code(index,level,fname),IntValue(0)),
+               Binop("LT",code(index,level,fname),Mem(code(array,level,fname))) ) ) ,
+        Mem( Binop( "PLUS",
+              code(array,level,fname),
+              Binop("TIMES",Binop("PLUS",code(index,level,fname),IntValue(1)),IntValue(4)) ) ) )
+    }
+
+    case RecordDeref(record,attr) => {
+      val tp = typechecker.typecheck(record)
+    var attrOffset = 0
+    var foundAttr = 0
+    typechecker.expandType(tp) match {
+      case RecordType(cl) => for((s1,s2) <- cl) {
+                   if (s1==attr)
+                     foundAttr = 1
+                   
+                   if (foundAttr==0)
+                     attrOffset += 4                   
+                 }
+    }
+    
+      ESeq( Assert(Binop("NEQ",
+               code(record,level,fname),
+               IntValue(0))) , 
+        Mem(Binop("PLUS",
+              code(record,level,fname),
+              IntValue(attrOffset))) ) 
+    }
+    
       case _ => throw new Error("Wrong statement: " + e)
     }
   }
