@@ -1,0 +1,37 @@
+PROGRAM IS
+  TYPE tree IS RECORD left: tree; info: INTEGER; right: tree; END;
+  VAR x: tree := tree { left:=NIL; info:=3; right:=NIL };
+
+  PROCEDURE preorder ( x: tree ) IS
+  BEGIN
+     IF x<>NIL
+     THEN
+        WRITE(x.info);
+        preorder(x.left);
+        preorder(x.right);
+     END;
+  END;
+
+  PROCEDURE sum ( x: tree ) : INTEGER IS
+  BEGIN
+     IF x=NIL
+     THEN RETURN 0;
+     ELSE RETURN sum(x.left)+x.info+sum(x.right); END;
+  END;
+
+  PROCEDURE reflect ( x: tree ) : tree IS
+  BEGIN
+     IF x=NIL
+     THEN RETURN NIL;
+     ELSE RETURN tree { left:=reflect(x.right); info:=x.info; right:=reflect(x.left) }; END;
+  END;
+
+BEGIN
+   x.left := tree { left:=NIL; info:=2; right:=NIL };
+   x.right := tree { left:=NIL; info:=4; right:=NIL };
+   x.left.right := tree { left:=x.right; info:=5; right:=NIL };
+   preorder(x);
+   WRITE("SUM: ",sum(x));
+   preorder(reflect(x));
+   WRITE("SUM: ",sum(x));
+END;

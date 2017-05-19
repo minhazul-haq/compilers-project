@@ -1,0 +1,7 @@
+PROGRAM IS
+  VAR x: INTEGER := 0;
+BEGIN
+  WRITE("Input: ");
+  READ(x);
+  WRITE(1+x*2);
+END;

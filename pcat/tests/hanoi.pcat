@@ -1,0 +1,14 @@
+PROGRAM IS
+  
+PROCEDURE hanoi(n: INTEGER; src,dst,tmp : INTEGER) IS
+  BEGIN
+    IF n > 0 THEN
+      hanoi(n-1,src,tmp,dst);
+      WRITE (n," ",src, " ", dst);
+      hanoi(n-1,tmp,dst,src);
+    END;
+  END;
+
+BEGIN
+ hanoi(5,1,2,3);
+END;

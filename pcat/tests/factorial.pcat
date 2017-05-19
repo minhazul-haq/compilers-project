@@ -1,0 +1,17 @@
+(* Compute the factorial of a  number. *)
+
+PROGRAM IS
+  VAR n := 0;
+  
+PROCEDURE fact (i: INTEGER) : INTEGER IS
+BEGIN
+   IF i<=0 THEN RETURN 1;
+      ELSE RETURN i*fact(i-1);
+   END;
+END;
+
+BEGIN
+  WRITE("Enter a number:");
+  READ(n);
+  WRITE(fact(n));
+END;

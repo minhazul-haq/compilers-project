@@ -1,0 +1,15 @@
+PROGRAM IS
+	TYPE IARRAY IS ARRAY OF INTEGER;
+	VAR a := IARRAY{2 OF 1,2,5,4 OF 6,100};
+	VAR k :=0;
+BEGIN
+	FOR i := 0 TO 8 DO
+	    WRITE("a[",i,"] is ",a[i]);
+        END;
+	WHILE k < 12 DO
+            IF (k < 9) AND (a[k] < 10) THEN
+	       WRITE(k," ",a[k]);
+            END;
+	    k := k+1;
+	END;
+END;

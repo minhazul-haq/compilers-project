@@ -1,0 +1,12 @@
+PROGRAM IS
+	TYPE IARRAY IS ARRAY OF INTEGER;
+	TYPE IIARRAY IS ARRAY OF IARRAY;
+	VAR a := IARRAY{ 2 OF 1, 2 OF 2 };
+	VAR b := IIARRAY{ 2 OF a };
+BEGIN
+	b[1][0] := 10;
+	WRITE("b[0][0] is ", b[0][0]);
+	WRITE("b[0][1] is ", b[0][1]);
+	WRITE("b[1][0] is ", b[1][0]);
+	WRITE("b[1][3] is ", b[1][3]);
+END;

@@ -1,0 +1,47 @@
+PROGRAM IS
+
+VAR N := 9;
+TYPE btree IS RECORD k: INTEGER; l: btree; r: btree; END;
+
+PROCEDURE insert (t: btree; i: INTEGER) : btree IS
+  BEGIN
+    IF (t = NIL) THEN
+      RETURN btree {k := i; l := NIL; r := NIL};
+    ELSIF (t.k <= i) THEN
+      RETURN btree {k := t.k; l := t.l; r := insert(t.r,i) };
+    ELSE 
+      RETURN btree {k := t.k; l := insert(t.l,i); r := t.r };
+    END;
+  END;
+
+PROCEDURE readtree () : btree IS
+  VAR i := 0;
+  VAR t : btree := NIL;
+  VAR a := 0;
+  BEGIN
+    WHILE i < N DO
+       READ (a);
+       t := insert(t,a);
+       i := i + 1;
+    END;
+    RETURN t;
+  END;
+
+PROCEDURE writetree (t : btree) IS
+  BEGIN
+    IF t = NIL THEN
+      RETURN;
+    ELSE 
+      writetree(t.l);
+      WRITE(t.k);
+      writetree(t.r);
+    END;
+  END;
+
+VAR t : btree := NIL;
+BEGIN
+  WRITE("Give ",N," numbers:");
+  t := readtree();
+  WRITE("Result:");
+  writetree (t);
+END;

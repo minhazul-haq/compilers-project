@@ -1,0 +1,18 @@
+PROGRAM IS
+VAR x: INTEGER := 6;
+    y: INTEGER := 3;
+
+PROCEDURE f (a : INTEGER) IS
+  VAR i : INTEGER := 2;
+  BEGIN
+    WRITE(a);
+    FOR k := 1 TO a DO
+        WRITE(k);
+    END;
+  END;
+
+
+BEGIN
+  f(x+1);
+  WRITE (x+y*2);
+END;

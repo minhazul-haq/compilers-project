@@ -1,0 +1,49 @@
+(* squares a matrix *)
+(* testing arrays   *)
+
+PROGRAM IS
+    VAR SIZE := 5; I := 0; J := 0; K := 0;CELL:= 0;
+    TYPE INT1D IS ARRAY OF INTEGER;
+    TYPE INT2D IS ARRAY OF INT1D;
+    TYPE INT3D IS ARRAY OF INT2D;
+    VAR B := INT1D {  SIZE OF 0  };
+    VAR C := INT2D {  SIZE OF INT1D { SIZE OF 0 } };
+    VAR D := INT2D {  SIZE OF INT1D { SIZE OF 0 } };
+BEGIN 
+	I := 0;
+	WHILE I < SIZE DO
+			C[I][I]:= I+1;
+			I := I + 1;
+	END;
+
+	I := 0;
+	WHILE I < SIZE DO
+		J := 0;
+		WHILE J < SIZE DO
+			CELL:=0;
+			K := 0;
+			WHILE K < SIZE DO
+				CELL := CELL + C[I][K]*C[K][J];
+				K := K + 1;
+			END;
+			D[I][J] := CELL;
+			J := J + 1;
+		END;
+		I := I + 1;
+	END;
+
+	WRITE("Input matrix"); 
+	I := 0;
+	WHILE I < SIZE DO
+		WRITE(C[I][0],"  ",C[I][1],"  ",C[I][2],"  ",C[I][3],"  ",C[I][4]);
+		I := I + 1;
+	END;
+	WRITE();
+
+	WRITE("Input matrix squared"); 
+	I := 0;
+	WHILE I < SIZE DO
+		WRITE(D[I][0],"  ",D[I][1],"  ",D[I][2],"  ",D[I][3],"  ",D[I][4]);
+		I := I + 1;
+	END;
+END;

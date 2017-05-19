@@ -1,0 +1,27 @@
+PROGRAM IS
+	TYPE BARRAY IS ARRAY OF BOOLEAN;
+	VAR size := 8190;
+	VAR IsPrime := BARRAY { size OF TRUE };
+	VAR i, j, k, prime, count :INTEGER := 0;
+	PROCEDURE mark (x :INTEGER) IS
+		BEGIN
+			IF x < size THEN
+				IsPrime[x] := FALSE;
+				x := x + prime;
+				mark(x);
+			END;
+		END;
+
+
+	BEGIN
+		WHILE j < size DO
+			IF IsPrime[j] = TRUE THEN
+				prime := j + j + 3;
+				k := j + prime;
+				mark(k);
+				count := count + 1;
+			END;
+			j := j + 1;
+		END;
+		WRITE("The number of prime numbers less than ", size, " is ", count);
+	END;

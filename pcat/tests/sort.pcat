@@ -1,0 +1,80 @@
+PROGRAM IS
+VAR N := 10;
+TYPE list IS ARRAY OF INTEGER;
+VAR a := list { N OF 0 };
+
+PROCEDURE quicksort ( a: list; m, n: INTEGER ) IS
+  VAR i : INTEGER := 0; 
+  PROCEDURE partition ( y, z: INTEGER ) : INTEGER IS
+    VAR i := y;
+	j := z + 1;
+    PROCEDURE meet() IS
+      PROCEDURE up() IS 
+        BEGIN
+          i := i + 1;
+          IF i < N THEN
+             IF a[i] < a[y] THEN
+	        up();
+	     END;
+          END;
+        END;
+      PROCEDURE down() IS
+        BEGIN
+          j := j - 1;
+          IF a[j] > a[y] THEN
+	    down();
+	  END;
+        END;
+      BEGIN
+	IF i < j THEN
+           up();
+	   down();
+           IF i < j THEN exchange(i,j); END;
+	   meet();
+	END;
+      END;
+    BEGIN
+      meet();
+      exchange(y,j);
+      RETURN j;
+    END;
+  AND exchange(p,q: INTEGER) IS
+    VAR x := a[p];
+    BEGIN
+      a[p] := a[q];
+      a[q] := x;
+    END;
+  BEGIN
+    IF n > m THEN
+      i := partition(m,n);
+      quicksort(a,m,i-1);
+      quicksort(a,i+1,n);
+    END;
+  END;
+
+PROCEDURE readarray() IS
+  VAR i := 0;
+  BEGIN
+    WHILE i < N - 1 DO
+       READ (a[i]);
+       i := i + 1;
+    END;
+    a[i] := -1000;
+  END;
+
+PROCEDURE writearray() IS
+  VAR i := 0;
+  BEGIN
+    WHILE i < N - 1 DO
+      WRITE (a[i]);
+      i := i + 1;
+    END;
+  END;
+
+BEGIN
+  WRITE ("Give 9 integers:");
+  readarray();
+  WRITE ("The sorted numbers are:");
+  quicksort(a,0,N-2);
+  writearray();
+END;

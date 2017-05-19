@@ -1,0 +1,7 @@
+PROGRAM IS
+	TYPE rec IS RECORD a: INTEGER; b: INTEGER; END;
+	VAR x := rec { a := 23; b := 67 };
+BEGIN
+	x.a := 89;
+	WRITE(x.a,"  ",x.b);
+END;

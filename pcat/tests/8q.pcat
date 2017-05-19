@@ -1,0 +1,33 @@
+PROGRAM IS
+TYPE BARRAY IS ARRAY OF BOOLEAN;
+     AND IARRAY IS ARRAY OF INTEGER;
+VAR	i: INTEGER := 0;
+	up := BARRAY { 15 OF TRUE }; 
+	down := BARRAY { 15 OF TRUE }; 
+	rows := BARRAY { 15 OF TRUE };
+	x := IARRAY { 8 OF -1 };
+
+PROCEDURE print() IS 
+  BEGIN
+    WRITE(x[0],x[1],x[2],x[3],x[4],x[5],x[6],x[7]);
+  END;
+
+PROCEDURE queens(c : INTEGER) IS
+  VAR r := 0;
+  BEGIN
+    WHILE r < 8  DO
+      IF rows[r] AND up[r-c+7] AND down[r+c] THEN
+	rows[r] := FALSE;
+	up[r-c+7] := FALSE;
+	down[r+c] := FALSE;
+	x[c] := r;
+	IF c = 7 THEN print(); ELSE queens (c+1); END;
+	rows[r] := TRUE; up[r-c+7] := TRUE; down[r+c] := TRUE;
+      END;
+      r := r + 1;
+    END;
+  END;
+
+BEGIN
+  queens(0);
+END;

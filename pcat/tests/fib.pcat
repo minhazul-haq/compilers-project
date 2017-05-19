@@ -1,0 +1,42 @@
+(* Compute Fibonacci numbers. *)
+
+PROGRAM IS
+  TYPE IARRAY IS ARRAY OF INTEGER;
+  VAR N := 40;
+      I := 0;
+      fibbs := IARRAY { N OF 0 };
+      j := 0;
+      n := 0;
+  
+PROCEDURE init(a : IARRAY) IS
+  VAR i : INTEGER := 2;
+  BEGIN
+    a[0] := 1;
+    a[1] := 1;
+    WHILE i < N - 1 DO
+      a[i] := I;
+      i := i + 1;
+    END;
+  END;
+
+PROCEDURE fibb(i: INTEGER) : INTEGER IS
+  BEGIN
+   IF fibbs[i] = I THEN
+     fibbs[i] := fibb(i-2) + fibb(i-1);
+   END;
+   RETURN fibbs[i];
+END;
+
+BEGIN
+  init(fibbs);
+  WRITE("Enter indices of eight fibbonacci numbers:");
+  WHILE j < 8 DO
+    READ(n);
+    IF n >= N THEN
+      WRITE("Maximum index is ", N-1);
+    ELSE
+      WRITE(n, " ", fibb(n));
+    END;
+    j := j + 1;
+  END;
+END;
