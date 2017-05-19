@@ -89,23 +89,193 @@ terminal         AND, ARRAY, BEGIN, BY, DIV, DO, ELSE, ELSIF, END, EXIT, FOR, IF
                  WRITE, ASGN, PLUS, MINUS, TIMES, SLASH, LT, LEQ, GT, GEQ, EQ, NEQ, COLON, SEMI,
                  COMMA, DOT, LPAREN, RPAREN, LSQBRA, RSQBRA, LCUBRA, RCUBRA, UMINUS;
 
-non terminal             program;
-non terminal Body        body;
-non terminal Expr        expression;
-non terminal Stmt        statement;
-non terminal List<Stmt>  statement_lst;
+non terminal     program, body, declaration_lst, statement_lst, declaration, var_decls, var_decl, id_lst;
+non terminal 	 type_decls, type_decl, procedure_decls, procedure_decl, type_name, type, component_lst;
+non terminal	 component, formal_params, fp_sections, fp_section, statement, lvalue_lst, elsif_lst;
+non terminal	 write_params, write_expr_lst, write_expr, expression, lvalue, actual_params, expression_lst;
+non terminal	 record_inits, id_expression_lst, array_inits, array_init_lst, array_init, number;
+
+precedence left		ELSE, ELSIF;
+precedence left		OR;
+precedence left		AND;
+precedence nonassoc	NOT;
+precedence nonassoc	EQ, LT, GT, LEQ, GEQ, NEQ;
+precedence left		PLUS, MINUS;
+precedence left		TIMES, SLASH, MOD, DIV;
+precedence left		PROCEDURE, LPAREN, RPAREN;
 
 start with program;
 
-program         ::= PROGRAM IS body:b SEMI            {: PCAT.setAST(new ProcDecl("main","NoType",nil,b)); :}
-                ;
-body            ::= BEGIN statement_lst:sl END        {: RESULT = new Body(nil,sl); :}
-                ;
-statement_lst   ::= statement:s                       {: RESULT = add(s,nil); :}
-                |   statement_lst:sl statement:s      {: RESULT = append(sl,s); :}
-                ;
-statement       ::=  RETURN expression:e SEMI         {: RESULT = new ReturnValueSt(e); :}
-                |    RETURN SEMI                      {: RESULT = new ReturnSt(); :}
-                ;
-expression      ::=  ID:n                             {: RESULT = new LvalExp(new Var(n)); :}
-                ;
+program         	::= PROGRAM IS body SEMI            
+					;
+body            	::= declaration_lst BEGIN statement_lst END     
+					|   BEGIN statement_lst END
+					|   declaration_lst BEGIN END
+					|   BEGIN END
+					;
+declaration_lst 	::= declaration_lst declaration
+					|   declaration
+					;	
+statement_lst   	::= statement_lst statement 
+					|   statement
+					;
+declaration			::= VAR var_decls
+					|   TYPE type_decls
+					|   PROCEDURE procedure_decls
+					;
+var_decls			::= var_decls var_decl
+					|   var_decl
+					;	
+var_decl			::= id_lst COLON type_name ASGN expression SEMI
+					|	id_lst ASGN expression SEMI		
+					;			
+id_lst				::= id_lst COMMA ID 
+					|   ID
+					;	
+type_decls 			::= type_decls AND type_decl 
+					|   type_decl
+					;	
+type_decl       	::= ID IS type SEMI
+					;
+procedure_decls 	::= procedure_decls AND procedure_decl  
+					|   procedure_decl
+					;
+procedure_decl  	::= ID formal_params COLON type_name IS body SEMI
+					|	ID formal_params IS body SEMI
+					;
+type_name 			::= ID
+					;
+type				::= ARRAY OF type_name
+					|   RECORD component_lst END
+					;
+component_lst   	::= component_lst component 
+					|   component
+					;
+component			::= ID COLON type_name SEMI
+					;				
+formal_params   	::= LPAREN fp_sections RPAREN
+					|   LPAREN RPAREN
+					;								
+fp_sections			::= fp_sections SEMI fp_section 
+					|	fp_section
+					;	
+fp_section			::= id_lst COLON type_name
+					;				
+statement       	::= lvalue ASGN expression SEMI
+					|   ID actual_params SEMI
+					|   READ LPAREN lvalue_lst RPAREN SEMI
+					|   WRITE write_params SEMI
+					|   IF expression THEN statement_lst
+						elsif_lst
+						ELSE statement_lst END SEMI
+					|   IF expression THEN
+						elsif_lst
+						ELSE statement_lst END SEMI
+					|   IF expression THEN statement_lst
+						elsif_lst
+						ELSE END SEMI
+					|   IF expression THEN
+						elsif_lst
+						ELSE END SEMI	
+					|   IF expression THEN statement_lst
+						elsif_lst
+						END SEMI
+					|   IF expression THEN
+						elsif_lst
+						END SEMI
+					|   IF expression THEN statement_lst
+						ELSE statement_lst END SEMI
+					|   IF expression THEN
+						ELSE statement_lst END SEMI
+					|   IF expression THEN statement_lst
+						ELSE END SEMI
+					|   IF expression THEN
+						ELSE END SEMI	
+					|   IF expression THEN statement_lst
+						END SEMI
+					|   IF expression THEN
+						END SEMI	
+					|   WHILE expression DO statement_lst END SEMI
+					|   WHILE expression DO END SEMI
+					|   LOOP statement_lst END SEMI
+					|   LOOP END SEMI
+					|	FOR ID ASGN expression TO expression BY expression
+						DO statement_lst END SEMI
+					|	FOR ID ASGN expression TO expression BY expression
+						DO END SEMI
+					|	FOR ID ASGN expression TO expression
+						DO statement_lst END SEMI
+					|	FOR ID ASGN expression TO expression
+						DO END SEMI
+					|	EXIT SEMI
+					|   RETURN expression SEMI         
+					|   RETURN SEMI                      
+					;
+lvalue_lst			::= lvalue_lst COMMA lvalue 
+					|   lvalue
+					;
+elsif_lst       	::= elsif_lst ELSIF expression THEN statement_lst 
+					|   elsif_lst ELSIF expression THEN 
+					|   ELSIF expression THEN statement_lst
+					|   ELSIF expression THEN 
+					;				
+write_params		::= LPAREN write_expr_lst RPAREN
+					|   LPAREN RPAREN
+					;
+write_expr_lst  	::= write_expr_lst COMMA write_expr 
+					|   write_expr
+					;	
+write_expr      	::= STRING_LITERAL
+					|   expression
+					;	
+expression      	::= number
+					|   lvalue
+					|   LPAREN expression RPAREN
+					|   MINUS expression
+					|   NOT expression
+					|   expression PLUS expression				
+					|   expression MINUS expression
+					|   expression TIMES expression
+					|   expression SLASH expression
+					|   expression DIV expression
+					|   expression MOD expression
+					|   expression OR expression
+					|   expression AND expression
+					|   expression GT expression
+					|   expression LT expression
+					|   expression EQ expression
+					|   expression GEQ expression
+					|   expression LEQ expression
+					|   expression NEQ expression
+					|   ID actual_params
+					|   ID record_inits
+					|   ID array_inits	
+					;
+lvalue				::= ID
+					|   lvalue LSQBRA expression RSQBRA
+					|   lvalue DOT ID
+					;
+actual_params   	::= LPAREN expression_lst RPAREN
+					|   LPAREN RPAREN
+					;
+expression_lst  	::= expression_lst COMMA expression 
+					|   expression
+					;
+record_inits    	::= LCUBRA id_expression_lst RCUBRA
+					;
+id_expression_lst	::= id_expression_lst SEMI ID ASGN expression 
+					|   ID ASGN expression
+					;	
+array_inits     	::= LCUBRA array_init_lst RCUBRA
+					|   LCUBRA RCUBRA
+					;
+array_init_lst  	::= array_init_lst COMMA array_init 
+					|   array_init
+					;
+array_init      	::= expression OF expression
+					|   expression
+					;
+number				::= INTEGER_LITERAL	
+					|   REAL_LITERAL
+					;
+				
